@@ -1,11 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { View } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
@@ -14,30 +12,58 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#8E6E53',
+        tabBarInactiveTintColor: '#B5A99A',
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
+        tabBarBackground: () => <View style={{ backgroundColor: '#F4EDE4', flex: 1 }} />,
+        tabBarLabelStyle: {
+          fontWeight: '500',
+          fontSize: 10,
+        },
+        tabBarStyle: {
+          backgroundColor: '#F4EDE4',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 60,
+          paddingTop: 8,
+          paddingBottom: 8,
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="menu"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Menu',
+          tabBarIcon: ({ color }) => <Ionicons name="restaurant-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="order"
+        options={{
+          title: 'Order Now',
+          tabBarIcon: ({ color }) => <Ionicons name="cart" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="giftcard"
+        options={{
+          title: 'Giftcard',
+          tabBarIcon: ({ color }) => <Ionicons name="gift-outline" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <Ionicons name="person" size={22} color={color} />,
         }}
       />
     </Tabs>

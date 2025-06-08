@@ -1,0 +1,630 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+
+import { ThemedText } from '@/components/ThemedText';
+import { useAuth } from '@/context/AuthContext';
+
+// Sample activity data - in a real app, this would come from an API
+const activityHistory = [
+  { id: 1, date: '2023-06-15', type: 'purchase', description: 'Caramel Macchiato, Croissant', points: 35, amount: 7.50 },
+  { id: 2, date: '2023-06-12', type: 'purchase', description: 'Latte, Blueberry Muffin', points: 30, amount: 6.75 },
+  { id: 3, date: '2023-06-10', type: 'redemption', description: 'Free Coffee Redemption', points: -100, amount: 0 },
+  { id: 4, date: '2023-06-05', type: 'purchase', description: 'Cappuccino', points: 22, amount: 4.50 },
+  { id: 5, date: '2023-06-01', type: 'bonus', description: 'Birthday Bonus', points: 50, amount: 0 },
+  { id: 6, date: '2023-05-28', type: 'purchase', description: 'Iced Americano, Sandwich', points: 42, amount: 8.95 },
+  { id: 7, date: '2023-05-25', type: 'purchase', description: 'Flat White', points: 25, amount: 5.25 },
+  { id: 8, date: '2023-05-20', type: 'referral', description: 'Friend Referral Bonus', points: 75, amount: 0 },
+];
+
+const tiers = [
+  { name: 'Bronze', min: 0, max: 499, benefits: ['Earn 5 points per $1', 'Birthday reward'] },
+  { name: 'Silver', min: 500, max: 1499, benefits: ['Earn 7 points per $1', 'Birthday reward', 'Free refills'] },
+  { name: 'Gold', min: 1500, max: Infinity, benefits: ['Earn 10 points per $1', 'Birthday reward', 'Free refills', 'Monthly free drink'] },
+];
+
+const rewards = [
+  { id: 1, name: 'Free Coffee', points: 100 },
+  { id: 2, name: 'Pastry of Choice', points: 150 },
+  { id: 3, name: '50% Off Any Drink', points: 75 },
+  { id: 4, name: 'Free Add-in', points: 50 },
+];
+
+export default function LoyaltyScreen() {
+  const { user, getUserPoints, updatePoints } = useAuth();
+  const [activeTab, setActiveTab] = useState('activity'); // 'activity', 'rewards', 'tiers'
+  
+  const userPoints = getUserPoints();
+  
+  // Determine user's tier
+  const getCurrentTier = () => {
+    return tiers.find(tier => userPoints >= tier.min && userPoints <= tier.max);
+  };
+  
+  const currentTier = getCurrentTier();
+  
+  // Format date string
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  
+  // Calculate lifetime points (all positive points)
+  const lifetimePoints = activityHistory
+    .filter(item => item.points > 0)
+    .reduce((sum, item) => sum + item.points, 0);
+  
+  // Calculate points to next tier
+  const getPointsToNextTier = () => {
+    const nextTierIndex = tiers.findIndex(tier => tier.name === currentTier?.name) + 1;
+    if (nextTierIndex < tiers.length) {
+      return tiers[nextTierIndex].min - userPoints;
+    }
+    return 0; // Already at max tier
+  };
+  
+  const pointsToNextTier = getPointsToNextTier();
+  
+  // Function to handle reward redemption
+  const redeemReward = async (reward: { id: number; name: string; points: number }) => {
+    // Check if user has enough points
+    if (userPoints < reward.points) return;
+    
+    try {
+      // Deduct points from user account
+      await updatePoints(-reward.points);
+      
+      // Show success notification (could be improved with a proper notification system)
+      alert(`You've successfully redeemed "${reward.name}"!\nCheck your rewards in the app.`);
+      
+      // In a real app, this would also add the reward to the user's account
+      // or generate a redemption code
+    } catch (error) {
+      console.error('Failed to redeem reward', error);
+      alert('Failed to redeem reward. Please try again.');
+    }
+  };
+  
+  // Render activity tab content
+  const renderActivityTab = () => (
+    <View style={styles.tabContent}>
+      <ThemedText style={styles.tabTitle}>Your Activity</ThemedText>
+      
+      {activityHistory.map(activity => (
+        <View key={activity.id} style={styles.activityItem}>
+          <View style={styles.activityHeader}>
+            <ThemedText style={styles.activityDate}>{formatDate(activity.date)}</ThemedText>
+            <ThemedText 
+              style={[
+                styles.activityPoints, 
+                activity.points > 0 ? styles.positivePoints : styles.negativePoints
+              ]}
+            >
+              {activity.points > 0 ? '+' : ''}{activity.points} pts
+            </ThemedText>
+          </View>
+          
+          <ThemedText style={styles.activityDescription}>
+            {activity.description}
+          </ThemedText>
+          
+          {activity.amount > 0 && (
+            <ThemedText style={styles.activityAmount}>
+              ${activity.amount.toFixed(2)}
+            </ThemedText>
+          )}
+          
+          <View style={styles.activityTypeTag}>
+            <Ionicons 
+              name={
+                activity.type === 'purchase' ? 'cart-outline' :
+                activity.type === 'redemption' ? 'gift-outline' :
+                activity.type === 'bonus' ? 'star-outline' : 'people-outline'
+              } 
+              size={12} 
+              color="#8E6E53" 
+            />
+            <ThemedText style={styles.activityTypeText}>
+              {activity.type.charAt(0).toUpperCase() + activity.type.slice(1)}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+  
+  // Render rewards tab content
+  const renderRewardsTab = () => (
+    <View style={styles.tabContent}>
+      <ThemedText style={styles.tabTitle}>Rewards</ThemedText>
+      
+      <View style={styles.rewardsGrid}>
+        {rewards.map(reward => (
+          <TouchableOpacity 
+            key={reward.id} 
+            style={[
+              styles.rewardCard,
+              userPoints < reward.points && styles.disabledReward
+            ]}
+            disabled={userPoints < reward.points}
+          >
+            <View style={styles.rewardIconContainer}>
+              <Ionicons 
+                name={
+                  reward.id === 1 ? 'cafe' :
+                  reward.id === 2 ? 'restaurant-outline' :
+                  reward.id === 3 ? 'cafe-outline' : 'add-circle-outline'
+                } 
+                size={28} 
+                color="#8E6E53" 
+              />
+            </View>
+            <ThemedText style={styles.rewardName}>{reward.name}</ThemedText>
+            <ThemedText style={styles.rewardPoints}>{reward.points} pts</ThemedText>
+            
+            {userPoints >= reward.points ? (
+              <TouchableOpacity 
+                style={styles.redeemButton}
+                onPress={() => redeemReward(reward)}
+              >
+                <ThemedText style={styles.redeemButtonText}>Redeem</ThemedText>
+              </TouchableOpacity>
+            ) : (
+              <ThemedText style={styles.pointsRemaining}>
+                Need {reward.points - userPoints} more points
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+  
+  // Render tiers tab content
+  const renderTiersTab = () => (
+    <View style={styles.tabContent}>
+      <ThemedText style={styles.tabTitle}>Membership Tiers</ThemedText>
+      
+      {tiers.map((tier, index) => (
+        <View 
+          key={tier.name} 
+          style={[
+            styles.tierCard,
+            tier.name === currentTier?.name && styles.currentTierCard
+          ]}
+        >
+          <View style={styles.tierHeader}>
+            <View style={styles.tierNameContainer}>
+              <Ionicons 
+                name={
+                  tier.name === 'Bronze' ? 'medal-outline' :
+                  tier.name === 'Silver' ? 'ribbon-outline' : 'trophy-outline'
+                } 
+                size={24} 
+                color={
+                  tier.name === 'Bronze' ? '#CD7F32' :
+                  tier.name === 'Silver' ? '#C0C0C0' : '#FFD700'
+                } 
+              />
+              <ThemedText style={styles.tierName}>{tier.name}</ThemedText>
+            </View>
+            
+            <ThemedText style={styles.tierPoints}>
+              {tier.min === 0 ? 'Start' : tier.min}
+              {tier.max !== Infinity ? ` - ${tier.max}` : '+'} pts
+            </ThemedText>
+          </View>
+          
+          <View style={styles.tierBenefits}>
+            <ThemedText style={styles.benefitsHeading}>Benefits:</ThemedText>
+            {tier.benefits.map((benefit, i) => (
+              <View key={i} style={styles.benefitItem}>
+                <Ionicons name="checkmark-circle" size={16} color="#8E6E53" />
+                <ThemedText style={styles.benefitText}>{benefit}</ThemedText>
+              </View>
+            ))}
+          </View>
+          
+          {tier.name === currentTier?.name && index < tiers.length - 1 && (
+            <View style={styles.nextTierProgress}>
+              <ThemedText style={styles.nextTierText}>
+                {pointsToNextTier} points to {tiers[index + 1].name}
+              </ThemedText>
+              <View style={styles.progressBarContainer}>
+                <View 
+                  style={[
+                    styles.progressBar,
+                    { 
+                      width: `${Math.min(
+                        100, 
+                        ((userPoints - tier.min) / (tiers[index + 1].min - tier.min)) * 100
+                      )}%` 
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+  
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      
+      {/* Header with points summary */}
+      <View style={styles.header}>
+        <ThemedText style={styles.pageTitle}>Loyalty Program</ThemedText>
+        
+        <View style={styles.pointsSummary}>
+          <View style={styles.pointsCircle}>
+            <ThemedText style={styles.pointsValue}>{userPoints}</ThemedText>
+            <ThemedText style={styles.pointsLabel}>POINTS</ThemedText>
+          </View>
+          
+          <View style={styles.pointsInfo}>
+            <View style={styles.infoRow}>
+              <ThemedText style={styles.infoLabel}>Current Tier:</ThemedText>
+              <ThemedText style={styles.infoValue}>{currentTier?.name}</ThemedText>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <ThemedText style={styles.infoLabel}>Lifetime Points:</ThemedText>
+              <ThemedText style={styles.infoValue}>{lifetimePoints}</ThemedText>
+            </View>
+            
+            {pointsToNextTier > 0 && (
+              <View style={styles.infoRow}>
+                <ThemedText style={styles.infoLabel}>Next Tier:</ThemedText>
+                <ThemedText style={styles.infoValue}>{pointsToNextTier} pts away</ThemedText>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+      
+      {/* Tab navigation */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'activity' && styles.activeTab]} 
+          onPress={() => setActiveTab('activity')}
+        >
+          <Ionicons 
+            name="list" 
+            size={20} 
+            color={activeTab === 'activity' ? '#8E6E53' : '#B5A99A'} 
+          />
+          <ThemedText 
+            style={[styles.tabText, activeTab === 'activity' && styles.activeTabText]}
+          >
+            Activity
+          </ThemedText>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'rewards' && styles.activeTab]} 
+          onPress={() => setActiveTab('rewards')}
+        >
+          <Ionicons 
+            name="gift" 
+            size={20}
+            color={activeTab === 'rewards' ? '#8E6E53' : '#B5A99A'} 
+          />
+          <ThemedText 
+            style={[styles.tabText, activeTab === 'rewards' && styles.activeTabText]}
+          >
+            Rewards
+          </ThemedText>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'tiers' && styles.activeTab]} 
+          onPress={() => setActiveTab('tiers')}
+        >
+          <Ionicons 
+            name="trophy" 
+            size={20} 
+            color={activeTab === 'tiers' ? '#8E6E53' : '#B5A99A'} 
+          />
+          <ThemedText 
+            style={[styles.tabText, activeTab === 'tiers' && styles.activeTabText]}
+          >
+            Tiers
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Tab content */}
+      <ScrollView style={styles.scrollView}>
+        {activeTab === 'activity' && renderActivityTab()}
+        {activeTab === 'rewards' && renderRewardsTab()}
+        {activeTab === 'tiers' && renderTiersTab()}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFCF7',
+  },
+  header: {
+    backgroundColor: '#F4EDE4',
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#3C2A15',
+    marginBottom: 16,
+  },
+  pointsSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  pointsCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#8E6E53',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  pointsValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  pointsLabel: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    marginTop: 4,
+  },
+  pointsInfo: {
+    flex: 1,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#59442B',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3C2A15',
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#F4EDE4',
+    paddingBottom: 10,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#8E6E53',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#B5A99A',
+    marginTop: 4,
+  },
+  activeTabText: {
+    color: '#8E6E53',
+    fontWeight: '600',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  tabContent: {
+    padding: 20,
+  },
+  tabTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#3C2A15',
+    marginBottom: 16,
+  },
+  activityItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  activityDate: {
+    fontSize: 14,
+    color: '#59442B',
+  },
+  activityPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  positivePoints: {
+    color: '#4CAF50',
+  },
+  negativePoints: {
+    color: '#F44336',
+  },
+  activityDescription: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3C2A15',
+    marginBottom: 8,
+  },
+  activityAmount: {
+    fontSize: 14,
+    color: '#8E6E53',
+    marginBottom: 8,
+  },
+  activityTypeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4EDE4',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  activityTypeText: {
+    fontSize: 12,
+    color: '#8E6E53',
+    marginLeft: 4,
+  },
+  rewardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  rewardCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  disabledReward: {
+    opacity: 0.6,
+  },
+  rewardIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F4EDE4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rewardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3C2A15',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  rewardPoints: {
+    fontSize: 14,
+    color: '#8E6E53',
+    marginBottom: 12,
+  },
+  redeemButton: {
+    backgroundColor: '#8E6E53',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  redeemButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pointsRemaining: {
+    fontSize: 12,
+    color: '#B5A99A',
+    textAlign: 'center',
+  },
+  tierCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  currentTierCard: {
+    borderWidth: 2,
+    borderColor: '#8E6E53',
+  },
+  tierHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tierNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tierName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3C2A15',
+    marginLeft: 8,
+  },
+  tierPoints: {
+    fontSize: 14,
+    color: '#8E6E53',
+  },
+  tierBenefits: {
+    marginBottom: 16,
+  },
+  benefitsHeading: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3C2A15',
+    marginBottom: 8,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  benefitText: {
+    fontSize: 14,
+    color: '#59442B',
+    marginLeft: 8,
+  },
+  nextTierProgress: {
+    marginTop: 8,
+  },
+  nextTierText: {
+    fontSize: 14,
+    color: '#8E6E53',
+    marginBottom: 4,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: '#F4EDE4',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#8E6E53',
+    borderRadius: 4,
+  },
+}); 

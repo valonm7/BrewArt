@@ -4,6 +4,11 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { AuthProvider } from '@/context/AuthContext';
+import { CartProvider } from '@/context/CartContext';
+import { FavoritesProvider } from '@/context/FavoritesContext';
+import { GiftCardProvider } from '@/context/GiftCardContext';
+import { PaymentProvider } from '@/context/PaymentContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
@@ -18,12 +23,25 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <AuthProvider>
+      <GiftCardProvider>
+        <PaymentProvider>
+          <CartProvider>
+            <FavoritesProvider>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+                  <Stack.Screen name="splash" options={{ headerShown: false }} />
+                  <Stack.Screen name="login" options={{ headerShown: false }} />
+                  <Stack.Screen name="signup" options={{ headerShown: false }} />
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" />
+              </ThemeProvider>
+            </FavoritesProvider>
+          </CartProvider>
+        </PaymentProvider>
+      </GiftCardProvider>
+    </AuthProvider>
   );
 }

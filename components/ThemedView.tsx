@@ -1,6 +1,6 @@
-import { View, type ViewProps } from 'react-native';
+import { View, type ViewProps, useColorScheme } from 'react-native';
 
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { Colors } from '@/constants/Colors';
 
 export type ThemedViewProps = ViewProps & {
   lightColor?: string;
@@ -8,7 +8,8 @@ export type ThemedViewProps = ViewProps & {
 };
 
 export function ThemedView({ style, lightColor, darkColor, ...otherProps }: ThemedViewProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const colorScheme = useColorScheme() ?? 'light';
+  const backgroundColor = lightColor ?? Colors[colorScheme].background;
 
   return <View style={[{ backgroundColor }, style]} {...otherProps} />;
 }

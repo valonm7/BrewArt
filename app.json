@@ -33,10 +33,17 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d104fc8c-853b-4c47-9dfe-b81912d46821"
+      }
     }
   }
 }
